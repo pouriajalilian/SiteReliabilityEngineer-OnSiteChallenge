@@ -29,6 +29,7 @@ Documentation: More details are available in the application documentation, also
 💡 Key Features:
 
 REST Endpoint: /health returns {"status": "ok"}.
+
 Prometheus Metrics: Exposes GET count for specific application metrics.
 
 📦 Containerization: The application is built into a Docker image and pushed to a public registry like Docker Hub.
