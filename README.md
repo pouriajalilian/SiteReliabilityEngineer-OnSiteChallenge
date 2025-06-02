@@ -1,47 +1,38 @@
-🚀 Project Overview:
+🚀 Kubernetes Cluster & App Deployment
+This repository details setting up a 3-node Kubernetes cluster, deploying a Flask application, and outlining initial steps for CI/CD, monitoring, and logging.
 
+✨ Project Overview
+This project showcases the journey from provisioning a Kubernetes cluster to deploying a containerized application, exposing its metrics for robust monitoring, and laying the groundwork for automated deployments and centralized logging.
 
-This project demonstrates the process of provisioning a Kubernetes cluster, deploying a containerized application, exposing its metrics for monitoring, and setting up the groundwork for automated deployments and centralized logging.
+☁️ 1. Kubernetes Cluster with Kubespray & Cilium
+We've provisioned a resilient 3-node Kubernetes cluster using Kubespray for automated setup and Cilium as the CNI for advanced network policies and performance.
 
-1. Kubernetes Cluster Provisioning with Kubespray & Cilium
+📚 Guide: Dive into the ClusterProvisioning-KubeSpray-Guide for a step-by-step walkthrough of the cluster setup.
+🌐 2. Flask Web Application Deployment
+A demonstration Flask web application is containerized and deployed to the Kubernetes cluster. This app includes a standard health endpoint and exposes Prometheus metrics.
 
-We've set up a robust 3-node Kubernetes cluster leveraging Kubespray for automated provisioning and Cilium as the CNI for advanced networking capabilities.
+📁 Application Structure:
+Location: Find the Flask application within the flask-app/ directory.
+Contents: It includes app.py (the Flask app), Dockerfile (for containerization), and requirements.txt (Python dependencies).
+Documentation: More details are available in the application documentation, also located in flask-app/.
+💡 Key Features:
+REST Endpoint: /health returns {"status": "ok"}.
+Prometheus Metrics: Exposes GET count for specific application metrics.
+📦 Containerization: The application is built into a Docker image and pushed to a public registry like Docker Hub.
+🛠️ 3. CI/CD Pipeline (Work in Progress)
+An initial CI/CD pipeline is established, aiming to automate the build, push, and deployment phases of the Flask application.
 
-Guide: For detailed steps on cluster setup, refer to the ClusterProvisioning-KubeSpray-Guide document.
+📄 Documentation: Refer to CI CD Documentation for an overview of the pipeline's design.
+⚙️ Configuration: The GitLab CI/CD YAML file details the stages for building the Docker image, pushing it to Docker Hub, and deploying to the Kubernetes cluster.
+👀 4. Monitoring & Logging
+Comprehensive monitoring with Prometheus is active, scraping metrics from the deployed Flask application. The logging infrastructure is currently being set up.
 
-2. Flask Web Application Deployment
-A sample Flask web application is containerized and deployed to the Kubernetes cluster. This application includes a health endpoint and exposes Prometheus metrics.
-
-Application Details:
-
-Location: The Flask application can be found in the flask-app/ directory.
-Files: Contains app.py (Flask application), Dockerfile (for containerization), and requirements.txt (Python dependencies).
-Documentation: Refer to the application documentation within the flask-app/ directory for more information.
-
-Key Features:
-REST Endpoint: /health returning {"status": "ok"}.
-
-Prometheus Metrics: Exposes GET count for application-specific metrics.
-Containerization: The application is containerized using Docker and pushed to a public registry (e.g., Docker Hub).
-
-3. CI/CD Pipeline :
-
-An initial CI/CD pipeline has been established, focusing on automating the build, push, and deployment process of the Flask application.
-
-Documentation: See CI CD Documentation for an overview of the pipeline's design.
-Configuration: The GitLab CI/CD YAML file outlines the stages for building the Docker image, pushing it to Docker Hub, and deploying to the Kubernetes cluster.
-
-4. Monitoring & Logging
-
-📊 Monitoring
+📈 Monitoring
 Prometheus: Deployed within the cluster to collect and store application metrics.
-Flask App Metrics: Successfully scraped metrics from the Flask application.
-Provisioning: Refer to kube-prometheus-stack Provisioning Manual for Prometheus setup.
-ServiceMonitor: See Flask-App-ServiceMonitor-Manifest for the manifest used to configure Prometheus to scrape the Flask app.
-
-
-📝 Logging (Mandatory, Not Fully Delivered):
-
-Filebeat: We are in the process of provisioning a Filebeat DaemonSet to collect and forward Flask App's logs.
-Elasticsearch: Logs are intended to be forwarded to an Elasticsearch instance.
-Provisioning: Refer to Provisioning Filebeat DaemonSet to collect and forward Flask App's Logs to ElasticSearch and ELasticSearch Provisioning Manual for details.
+Flask App Metrics: Successfully configured to scrape metrics from the Flask application.
+📚 Provisioning: Consult the kube-prometheus-stack Provisioning Manual for details on Prometheus setup.
+🔗 ServiceMonitor: See Flask-App-ServiceMonitor-Manifest for the manifest used to configure Prometheus to scrape the Flask app.
+📝 Logging (Mandatory, Not Fully Delivered)
+Filebeat: We're in the process of provisioning a Filebeat DaemonSet to collect and forward the Flask App's logs.
+Elasticsearch: Logs are designed to be sent to an Elasticsearch instance for centralized management.
+📚 Provisioning: For setup details, refer to Provisioning Filebeat DaemonSet to collect and forward Flask App's Logs to ElasticSearch and the ELasticSearch Provisioning Manual.
