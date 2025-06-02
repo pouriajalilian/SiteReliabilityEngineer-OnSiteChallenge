@@ -1,0 +1,90 @@
+
+
+Steps Required to Provision a 3 Node Kubernetes Cluster (1 MasterNode , 2 Worker Nodes) Using Kubespray Playbook:
+0:
+make sure you have ( SSHkey-Access) to all cluster nodes from your Ansible control node.
+Then :
+
+Clone the Latest KubeSpray's Github Repo, Checkout to a Specific Version ( Based On your need, Near Latest, the better!), Then install the requirements :
+
+1:
+git clone https://github.com/kubernetes-sigs/kubespray.git
+
+2:
+cd kubespray
+# It's good practice to checkout a stable release, e.g., v2.24.0. Check the latest stable release on GitHub.
+
+3:
+git checkout release-2.24
+
+4:
+sudo pip install -r requirements.txt
+##########requirements.txt Contents are as follows:
+ansible==8.5.0
+cryptography==41.0.4
+jinja2==3.1.2
+jmespath==1.0.1
+MarkupSafe==2.1.3
+netaddr==0.9.0
+pbr==5.11.1
+ruamel.yaml==0.17.35
+ruamel.yaml.clib==0.2.8
+
+###############
+5: Define hosts file based on the reqiured pattern , offered by Kubespray sample file:
+
+[ cp -rfp ./inventory/sample inventory/mycluster ]
+
+
+hosts.yaml:
+
+
+all:
+  hosts:
+    k8s-master-1:
+      ansible_host: 10.10.10.101  # replace with your actual ip address / ssh port 
+      ansible_port: 22
+    k8s-worker-1:
+      ansible_host: 10.10.10.102 # replace with your actual ip address / ssh port
+      ansible_port: 22
+    k8s-worker-2:
+      ansible_host: 10.10.10.103 # replace with your actual ip address / ssh port
+      ansible_port: 22
+  children:
+    kube_control_plane:
+      hosts:
+        k8s-master-1:
+    kube_node:
+      hosts:
+        k8s-worker-1:
+        k8s-worker-2:
+    etcd:
+      hosts:
+        k8s-master-1:
+    k8s_cluster:
+      children:
+        kube_control_plane:
+        kube_node:
+    
+      
+      
+##########################Edit K8s-cluster.yaml as follows:
+6: Define cilium as the prefered CNI in  k8s-cluster group_vars as follows:
+
+inventory/mycluster/group_vars/k8s_cluster/k8s-cluster.yml
+      
+kube_network_plugin: cilium
+cilium_kube_proxy_replacement: strict # or partial, strict is recommended for full Cilium benefits
+ansible_user: ubuntu # Replace 'your_username' with the actual username you use to SSH into the servers
+
+
+#############Command to Run Kubespray to Provison the cluster :
+7: Finaly, run the bellow command to run the kubespray's cluster provisioning process:
+ansible-playbook -i inventory/mycluster/hosts.yaml --become -u ubuntu -K cluster.yml
+
+8: After finishing the play, run kubectl get node ( as an example ) as well as kubectl get po -n kubesystem to make sure cluster node roles are as expected, as well as system pods are up and running.
+
+
+
+
+

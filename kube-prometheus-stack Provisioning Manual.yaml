@@ -1,0 +1,36 @@
+First, We need to install helm (v3) to install the stack and it's CRD's ( Plus Operator): 
+
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+Second:
+Install the helm repository, update the repo metadata, then  install the latest Chart metrics:
+a)
+#helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+b)
+#helm repo update
+
+c)
+#helm install prometheus prometheus-community/kube-prometheus-stack 
+
+
+If you needed to modify any Helm Chart's values to customize it's deployment, do it as follows:
+
+
+1:  save values related to the chart , before installing it to a file:
+#helm show values https://prometheus-community.github.io/helm-charts > values.yaml
+
+2: edit the file and define your desired values in it , and save the file.
+... [as you wish]
+
+3: install the chart using the desired values you have provided in step 2:
+  #helm install prometheus prometheus-community/kube-prometheus-stack  -f values.yaml
+
+
+
+Important Note:
+
+
+to make prometheus operator fully aware of the Fask app metric endpoint, you must define a "service monitor" in which you define app's lable and the endpoint it exposes it's metrics in the CRD.
+  
+

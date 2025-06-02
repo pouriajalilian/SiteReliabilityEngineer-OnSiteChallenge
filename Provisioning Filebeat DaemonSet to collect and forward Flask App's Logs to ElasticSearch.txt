@@ -1,0 +1,207 @@
+Pro---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  namespace: filebeat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+rules:
+- apiGroups: [""] # Core API group
+  resources:
+  - pods
+  - namespaces
+  - nodes
+  verbs:
+  - get
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+- kind: ServiceAccount
+  name: filebeat
+  namespace: filebeat
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filebeat-config
+  namespace: filebeat
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+    - type: container
+      paths:
+        - /var/log/containers/*.log
+      processors:
+        - add_kubernetes_metadata:
+            host: ${NODE_NAME}
+            matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+
+    filebeat.autodiscover:
+      providers:
+        - type: kubernetes
+          host: ${KUBERNETES_SERVICE_HOST}
+          kube_config:
+            mount_point: /var/run/secrets/kubernetes.io/serviceaccount
+          templates:
+            - condition:
+                contains:
+                  kubernetes.labels.app: "flask-health-app"  # <--- Flask App Label
+              config:
+                - type: container
+                  paths:
+                    - /var/log/containers/${data.kubernetes.pod.name}_${data.kubernetes.container.name}-*.log
+                  fields_under_root: true
+                  fields:
+                    app_name: flask-health-app 
+                  processors:
+                    - add_kubernetes_metadata:
+                        host: ${NODE_NAME}
+                        matchers:
+                          - logs_path:
+                              logs_path: "/var/log/containers/"
+                    - decode_json_fields: # Uncomment and configure if your Flask app outputs JSON logs
+                        fields: ["message"]
+                        target: "json"
+                        overwrite_keys: true
+                        max_depth: 1
+                        add_error_key: true
+
+    output.elasticsearch:
+      hosts: ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+      # These will be populated from the secret referenced in the DaemonSet
+      username: "${ELASTIC_USERNAME}"
+      password: "${ELASTIC_PASSWORD}"
+      # If using TLS/SSL, you might need to add certificate configuration here:
+      # ssl.enabled: true
+      # ssl.verification_mode: none # Not recommended for production, use a proper CA
+      # ssl.certificate_authorities: ["/path/to/your/ca.crt"]
+
+    logging.level: info
+    logging.to_files: true
+    logging.files:
+      path: /var/log/filebeat
+      name: filebeat.log
+      keepfiles: 7
+      permissions: 0644
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: filebeat
+  namespace: filebeat
+  labels:
+    k8s-app: filebeat
+spec:
+  selector:
+    matchLabels:
+      k8s-app: filebeat
+  template:
+    metadata:
+      labels:
+        k8s-app: filebeat
+    spec:
+      serviceAccountName: filebeat
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true # Required for accessing host-level log paths
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: filebeat
+        image: docker.elastic.co/beats/filebeat:8.13.0 
+        args:
+          - -c
+          - /etc/filebeat.yml
+          - -e 
+        env:
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch-master.elk.svc.cluster.local" 
+        - name: ELASTICSEARCH_PORT
+          value: "9200" 
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        
+        - name: ELASTIC_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-master-credentials 
+              key: username 
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: elasticsearch-master-credentials
+              key: password 
+        securityContext:
+          runAsUser: 0 # Filebeat needs root privileges to read host-level logs
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/filebeat.yml
+          readOnly: true
+          subPath: filebeat.yml 
+        - name: varlogcontainers
+          mountPath: /var/log/containers 
+          readOnly: true
+        - name: varlogpods
+          mountPath: /var/log/pods 
+          readOnly: true
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers 
+          readOnly: true
+        - name: data
+          mountPath: /usr/share/filebeat/data 
+        - name: runsecrets 
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: filebeat-config
+      - name: varlogcontainers
+        hostPath:
+          path: /var/log/containers
+      - name: varlogpods
+        hostPath:
+          path: /var/log/pods
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: data
+        hostPath:
+          path: /var/lib/filebeat-data
+          type: DirectoryOrCreate
+      - name: runsecrets
+        hostPath:
+          path: /var/run/secrets/kubernetes.io/serviceaccount
+          type: DirectoryOrCreate
+
+
+
+######################### adding elasticsearch password to filebeat's namespace as follow:
+
+# Re-run the secret copy command
+kubectl get secret elasticsearch-master-credentials --namespace=elk -o yaml | \
+  sed 's/namespace: elk/namespace: filebeat/' | \
+  kubectl apply -f -
+  

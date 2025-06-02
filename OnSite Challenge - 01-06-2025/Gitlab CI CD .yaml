@@ -1,0 +1,70 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  DOCKER_HUB_USERNAME: "pouriajalilian" # Your Docker Hub username
+  DOCKER_HUB_IMAGE_NAME: "flask-health-app" # Your desired image name
+  # DOCKER_TLS_CERTDIR: "" # Set this to an empty string to avoid TLS issues with DinD if you encounter them
+
+build_image:
+  stage: build
+  image: docker:dind # Use Docker in Docker directly as the image
+  script:
+    - echo "Building Docker image..."
+    - docker build -t $DOCKER_HUB_USERNAME/$DOCKER_HUB_IMAGE_NAME:latest ./flask-app
+    - echo "Docker image built successfully."
+  only:
+    - main # This job will only run on the 'main' branch
+  # It's good practice to ensure that the Docker daemon is ready
+  # For simple cases, this might not be strictly necessary with docker:dind image,
+  # but for robustness, especially in more complex scenarios, it can help.
+  before_script:
+    - until docker info; do sleep 1; done
+
+push_image:
+  stage: push
+  image: docker:dind # Use Docker in Docker directly as the image
+  script:
+    - echo "Logging into Docker Hub..."
+    # Ensure DOCKER_HUB_PASSWORD is set as a masked CI/CD variable in your GitLab project settings
+    - docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+    - echo "Pushing Docker image to Docker Hub..."
+    - docker push $DOCKER_HUB_USERNAME/$DOCKER_HUB_IMAGE_NAME:latest
+    - echo "Docker image pushed successfully."
+  only:
+    - main
+  needs: ["build_image"] # This job depends on the 'build_image' job
+  
+
+deploy:
+  stage: deploy
+  image: alpine/kubectl:latest # Or a suitable image with kubectl
+  before_script:
+    # Ensure KUBECONFIG is properly set from the GitLab CI/CD file variable
+    - export KUBECONFIG=$KUBECONFIG
+    # Create the Docker Hub registry secret in Kubernetes
+    - kubectl create secret docker-registry dockerhub-secret \
+      --docker-server=docker.io \
+      --docker-username=$DOCKER_HUB_USERNAME \
+      --docker-password=$DOCKER_HUB_PASSWORD \
+      --docker-email=$DOCKER_HUB_USERNAME@example.com \ # Using username@example.com for email
+      -n $KUBE_NAMESPACE \
+      --dry-run=client -o yaml | kubectl apply -f -
+  script:
+    - echo "Deploying Flask App Pod to Kubernetes..."
+    # Use the embedded manifest and pipe it to kubectl apply
+    - | # This allows multiline script command
+      cat <<EOF | kubectl apply -f - -n $KUBE_NAMESPACE
+      $(*FLASK_APP_POD_MANIFEST)
+      EOF
+    - echo "Flask App Pod deployment initiated."
+  only:
+    - main
+  needs: ["push_image"]
+  allow_failure: false # Set to false to fail the pipeline if deployment fails
+  
+  
+  
+ 
