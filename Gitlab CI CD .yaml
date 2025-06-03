@@ -49,7 +49,6 @@ deploy:
       --docker-server=docker.io \
       --docker-username=$DOCKER_HUB_USERNAME \
       --docker-password=$DOCKER_HUB_PASSWORD \
-      --docker-email=$DOCKER_HUB_USERNAME@example.com \ # Using username@example.com for email
       -n $KUBE_NAMESPACE \
       --dry-run=client -o yaml | kubectl apply -f -
   script:
