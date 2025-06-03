@@ -5,6 +5,8 @@ metadata:
   labels:
     app: flask-health-app
 spec:
+  imagePullSecrets:
+  - name: dockerhub-secret
   containers:
   - name: flask-health-container
     image: pouriajalilian/flask-health-app:v3 # Your Flask app image
